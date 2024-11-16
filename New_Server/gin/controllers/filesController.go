@@ -29,27 +29,14 @@ func UploadHandler(c *gin.Context) {
 		saveDir = "unknown"
 	}
 
-	// Make dir if not exist
-	if err := os.MkdirAll(saveDir, os.ModePerm); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error creating folder",
-		})
-		fmt.Printf("Error creating folder: %s", err)
-		return
-	}
-
 	// Get Filename without extension
 	filename := strings.TrimSuffix(file.Filename, ext)
 
 	// Make name of file with sufix "_1", "_2" etc, if file already exist
-	newFilename := filepath.Join(saveDir, file.Filename)
-	i := 1
-	for {
-		if _, err := os.Stat(newFilename); os.IsNotExist(err) {
-			break
-		}
-		newFilename = filepath.Join(saveDir, fmt.Sprintf("%s_%d%s", filename, i, ext))
-		i++
+	newFilename, err := getUniqueFilename(saveDir, filename, ext)
+	if err != nil {
+		fmt.Printf("Ошибка при получении уникального имени файла: " + err.Error())
+		return
 	}
 
 	// Display file information
@@ -71,4 +58,18 @@ func UploadHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "File uploaded successfully!", "path": newFilename,
 	})
+}
+
+func getUniqueFilename(saveDir, filename, ext string) (string, error) {
+	newFilename := filepath.Join(saveDir, filename+ext)
+	i := 1
+
+	// Проверяем существование файла и генерируем новое имя, если файл существует
+	for {
+		if _, err := os.Stat(newFilename); os.IsNotExist(err) {
+			return newFilename, nil // Возвращаем уникальное имя файла
+		}
+		newFilename = filepath.Join(saveDir, fmt.Sprintf("%s_%d%s", filename, i, ext))
+		i++
+	}
 }
